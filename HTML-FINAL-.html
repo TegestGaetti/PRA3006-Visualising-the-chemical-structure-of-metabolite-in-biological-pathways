@@ -92,7 +92,7 @@
 
   <script type="text/javascript"> //SPARQL query code
     var url = "https://sparql.wikipathways.org/sparql/";
-
+    
     var query = "PREFIX cheminf: <http://semanticscience.org/resource/>\
     SELECT (SAMPLE(str(?label)) as ?MetaboliteLabel) (SAMPLE(?smilesDepict) as ?smilesDepict)\
     WHERE {\
@@ -139,7 +139,6 @@
         var row = document.createElement("tr");
         var cell1 = document.createElement("td");
         var cell2 = document.createElement("td");
-        var cell3 = document.createElement("td");
         cell1.innerHTML = sparqlData[i].Metabolite;
         cell2.innerHTML = "<img src= \""+ sparqlData[i].smilesUrl + "\">"; //Get image form URL
         
