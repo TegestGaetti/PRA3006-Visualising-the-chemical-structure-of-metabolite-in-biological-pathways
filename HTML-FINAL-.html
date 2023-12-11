@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Visualising the chemical structure of metabolite in biological pathways</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <!-- jQuary Library -->
+  <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+ 
+<!-- Illustartion and layout -->
+  <style> 
+    
+    body{
+    
+      font-family: Arial, Helvetica, sans-serif;
+    }
+  
+
+    tbody tr{
+    
+    border-bottom: 1px solid;
+      color: #000000;
+      font-size: system-ui;
+      line-height: 1.5;
+      text-align: left;
+  }
+
+    
+    .wrapper {
+        width: min(900px, 100% - 3rem);
+    }
+    
+    table{
+      border-collapse: collapse;
+      margin: 25px 0;
+      font-size: 1.5em;
+      min-width: 500px;
+  
+        }
+    
+    th,td{
+      border: 1rem #000;
+      text-align: center;
+      padding: 12px 15px;
+      text-align: left;
+      width: 600;
+  
+    }
+    
+    th{
+        font-size: 1.5rem;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    caption{
+        font-size: 1.5rem;
+        font-weight: 1000;
+    }
+  </style>
+</head>
+
+
+<!-- Creating search tab -->
+
+<div class="row">
+    <div class="col">
+        <div class="card card-body">
+          <div id="search-container">
+            <label for="search-input" style="font-weight: bold; margin-left: 5px;">Search:</label>
+            <input id="search-input" class="form-control" type="text">
+          </div>
+    </div>
+  </div>
+</div>
+
+<body>
+
+  <table >   <!--Structure table -->
+    <caption>METABOLITES</caption>
+      <tr>
+        <th data-column="name" data-order="desc">Name &#9650</th>
+        <th data-column="structure" data-order="desc">Structure</th>
+        
+      </tr>
+    
+    <tbody id="myTable">
+      <!-- Table body will be populated dynamically with JavaScript -->
+    </tbody>
+  </table>
+
+
+  <script type="text/javascript"> //SPARQL query code
+    var url = "https://sparql.wikipathways.org/sparql/";
+
+    var query = "PREFIX cheminf: <http://semanticscience.org/resource/>\
+    SELECT (SAMPLE(str(?label)) as ?MetaboliteLabel) (SAMPLE(?smilesDepict) as ?smilesDepict)\
+    WHERE {\
+    ?Metabolite a wp:Metabolite ; \
+        rdfs:label ?label ;\
+        dcterms:isPartOf ?pathway .\
+    ?pathway a wp:Pathway ;\
+        dcterms:identifier \"WP2360\" .\
+    ?Metabolite wp:bdbWikidata/cheminf:CHEMINF_000018 ?smilesDepict .\
+    } GROUP BY ?Metabolite";
+
+
+    // Extracting and storing data
+    var sparqlData = [];
+
+    var queryUrl = url + "?query=" + encodeURIComponent(query) + "&format=json";
+    console.log("Query URL: " + queryUrl);
+
+    // AJAX request to get data from SPARQL
+    $.ajax({
+      dataType: "jsonp",
+      url: queryUrl,
+      success: function(response) {
+        var results = response.results.bindings;
+
+        for (var i in results) {
+          var molecules = results[i].MetaboliteLabel.value; 
+          // Create valiable with URL of each smileDepict
+          var smilesURL = "https://www.simolecule.com/cdkdepict/depict/bot/svg?smi=" +  encodeURIComponent(results[i].smilesDepict.value);
+          sparqlData.push({ Metabolite: molecules, smilesUrl: smilesURL });
+        }
+        buildTable(sparqlData); //Iniciate te function to fill the table
+    
+      }
+    });
+
+    //Function to fill table with SPARQL results
+    function buildTable(sparqlData){
+      var tableBody = document.getElementById("myTable");
+      tableBody.innerHTML = "";
+      
+      for(var i = 0; i < sparqlData.length; i++)
+      {
+        var row = document.createElement("tr");
+        var cell1 = document.createElement("td");
+        var cell2 = document.createElement("td");
+        var cell3 = document.createElement("td");
+        cell1.innerHTML = sparqlData[i].Metabolite;
+        cell2.innerHTML = "<img src= \""+ sparqlData[i].smilesUrl + "\">"; //Get image form URL
+        
+        row.appendChild(cell1);
+        row.appendChild(cell2);
+        tableBody.appendChild(row);
+      }
+    }
+
+   //Serach section : taken form : https://www.youtube.com/watch?v=DzXmAKdEYIs&list=PL-51WBLyFTg1l3K0aTH0uX6PzgaLfzJBK&index=3
+    // Input 
+    $("#search-input").on("keyup", function(){
+        var value = $(this).val()
+        console.log("Value:", value)
+        var data = searchTable(value, sparqlData)
+        buildTable(data)
+    })
+    
+    //Search and extract
+    function searchTable(value, data){
+        var filteredData = []
+        for (var i=0; i<data.length; i++){
+            value = value.toLowerCase() //Hangle upper and lower cases
+            var metabolite = data[i].Metabolite.toLowerCase()
+
+            if(metabolite.includes(value)){
+                filteredData.push(data[i])
+            }
+        }
+        return filteredData;
+    }
+
+    //Sort by Column - Taken from: https://www.youtube.com/watch?v=Q9aYU1Ufkpk
+    //Click on screen function
+    $('th').on('click', function()
+    {
+      var column = $(this).data('column');
+      var order = $(this).data('order');
+      var text = $(this).html();
+      text = text.substring(0, text.length -1);
+
+
+      if(order == 'desc'){
+        $(this).data('order', 'asc');
+        sparqlData=sparqlData.sort((a,b) => a[column] > b[column] ? 1 : -1);
+        
+        text += '&#9660';
+
+      }else{
+        $(this).data('order', 'desc');
+        sparqlData=sparqlData.sort((a,b) => a[column] < b[column] ? 1 : -1);
+        
+        text += '&#9650'
+      }
+
+      $(this).html(text);
+      buildTable(sparqlData);
+
+    });
+
+  </script>
+</body>
+</html>
